@@ -1,0 +1,233 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  
+  <title>STL 智能指针分析 | 1nchy</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+  
+    <link rel="shortcut icon" href="/favicon.png">
+  
+  
+<link rel="stylesheet" href="/css/style.css">
+
+<meta name="generator" content="Hexo 7.3.0"></head>
+
+<body>
+  <div id="container">
+    <div id="wrap">
+      <header id="header">
+  <div id="banner"></div>
+  <div id="header-outer" class="outer">
+    <div id="header-title" class="inner">
+      <h1 id="logo-wrap">
+        <a href="/" id="logo">1nchy</a>
+      </h1>
+      
+        <h2 id="subtitle-wrap">
+          <a href="/" id="subtitle">record ideas from 1nchy</a>
+        </h2>
+      
+    </div>
+    <div id="header-inner" class="inner">
+      <nav id="main-nav">
+        <a id="main-nav-toggle" class="nav-icon"></a>
+        
+          <a class="main-nav-link" href="/">Home</a>
+        
+          <a class="main-nav-link" href="/archives">Archives</a>
+        
+          <a class="main-nav-link" href="/categories">Categories</a>
+        
+          <a class="main-nav-link" href="/tags">Tags</a>
+        
+          <a class="main-nav-link" href="/about">About</a>
+        
+      </nav>
+    </div>
+  </div>
+</header>
+
+      <div class="outer">
+        <section id="main"><article id="post-stl_memory" class="h-entry article article-type-post" itemprop="blogPost" itemscope itemtype="https://schema.org/BlogPosting">
+  <div class="article-meta">
+    <a href="/2024/09/30/stl_memory/" class="article-date">
+  <time class="dt-published" datetime="2024-09-30T09:19:36.000Z" itemprop="datePublished">2024-09-30</time>
+</a>
+    
+  </div>
+  <div class="article-inner">
+    
+    
+      <header class="article-header">
+        
+  
+    <h1 class="p-name article-title" itemprop="headline name">
+      STL 智能指针分析
+    </h1>
+  
+
+      </header>
+    
+    <div class="e-content article-entry" itemprop="articleBody">
+      
+        <p>这篇文章的起因是我在知乎上看到了这个问题的回答<a target="_blank" rel="noopener" href="https://www.zhihu.com/question/652159885/answer/3480944078">C++构造shared_ptr为什么推荐使用make_shared，而非new</a>。</p>
+<p>结合之前的一些源码阅读，形成了这篇文章，总结了智能指针以下的细节：</p>
+<ul>
+<li>类间关系</li>
+<li>计数器原理</li>
+<li><code>shared_ptr(*)</code> 与 <code>make_shared</code> 两种构造方法的区别</li>
+</ul>
+<span id="more"></span>
+<h2 id="类间关系">类间关系</h2>
+<p>这里我们先着眼于 <code>shared_ptr</code> 与 <code>weak_ptr</code>，很多文章都解析过他们的使用原则：<code>shared_ptr</code> 持有资源，<code>weak_ptr</code> 仅持有访问权。</p>
+<p><img alt="class diagram of shared_ptr and weak_ptr" src="./shared_ptr.png" width=512 style="display: block; margin: 0 auto;"/></p>
+<p>粗略的讲，两种智能指针持有了资源指针及相应的计数器，实现了对资源生命周期的管理。</p>
+<p>这里的两种用于计数的类：<code>__shared_count</code> 和 <code>__weak_count</code> 并不直接进行计数，也不直接修改计数器 <code>_Sp_counted_base</code> 内部的值，是通过自身的构造与析构间接修改的。当我创建一个 <code>weak_ptr</code> 的同时，一个 <code>__weak_count</code> 对象也被创建，其构造函数内部增加了弱引用计数。其他情况同理相似。</p>
+<h2 id="计数器原理">计数器原理</h2>
+<p>两种计数类 <code>__shared_count</code> 和 <code>__weak_count</code> 都持有指向了计数器 <code>_Sp_counted_base</code> 的指针 <code>_M_pi</code>，管理同一对象的不同智能指针，都分别持有指向了同一个计数器的指针。被管理资源与计数器是一对一的。</p>
+<p>计数器 <code>_Sp_counted_base</code> 类包含了 <code>_M_use_count</code> 和 <code>_M_weak_count</code> 成员，分别统计引用和弱引用计数；实现了一系列用于修改（弱）引用计数的接口；声明了用于资源回收的 <code>_M_dispose()</code> 和 <code>_M_destroy</code> 虚函数。</p>
+<p><code>_M_dispose()</code> 函数在引用计数归零时被调用，用于释放被智能指针管理的资源。</p>
+<p><code>_M_destroy()</code> 函数在弱引用计数归零时被调用，用于释放计数器资源。</p>
+<p>需要注意的是，在上面的理论中，被管理资源与计数器资源的释放是分离的。这也就引申出知乎上的那篇<a target="_blank" rel="noopener" href="https://www.zhihu.com/question/652159885/answer/3480944078">回答</a>。</p>
+<h2 id="shared_ptr-与-make_shared-两种构造方法的区别"><code>shared_ptr(*)</code> 与 <code>make_shared</code> 两种构造方法的区别</h2>
+<p>源码中内存分配部分较复杂，为方便展示与理解，我进行了适当的有语法错误的修改。</p>
+<h3 id="shared_ptr"><code>shared_ptr(*)</code></h3>
+<p><code>shared_ptr(*)</code> 的构造如下面代码所示：</p>
+<figure class="highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">auto</span> _p = std::<span class="built_in">shared_ptr</span>&lt;<span class="type">int</span>&gt;(<span class="keyword">new</span> <span class="built_in">int</span>(<span class="number">3</span>));</span><br></pre></td></tr></table></figure>
+<p>其匹配的构造函数的入参是堆上资源的指针。为什么要强调在堆上呢？因为对于以这种方式构造的 <code>shared_ptr</code> 来说，释放被管理资源时，会调用 <code>delete</code> 运算符，析构对象并回收内存。</p>
+<figure class="highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">template</span> &lt;<span class="keyword">typename</span> _Tp, _Lock_policy _Lp&gt; <span class="keyword">class</span> <span class="title class_">__shared_ptr</span> &#123;</span><br><span class="line"><span class="keyword">public</span>:</span><br><span class="line">    <span class="keyword">template</span>&lt;<span class="keyword">typename</span> _Yp&gt; <span class="keyword">explicit</span> __shared_ptr(_Yp* __p)</span><br><span class="line">	: _M_ptr(__p), _M_refcount(__p)	&#123;</span><br><span class="line">	    _M_enable_shared_from_this_with(__p);</span><br><span class="line">	&#125;</span><br><span class="line"><span class="keyword">private</span>:</span><br><span class="line">    element_type* _M_ptr;</span><br><span class="line">    __shared_count&lt;_Lp&gt; _M_refcount;</span><br><span class="line">&#125;;</span><br></pre></td></tr></table></figure>
+<p>对于这种用法，<code>shared_ptr</code> 的计数器及资源组织方式就是最初学者的方式：计数器与被管理对象分离，智能指针仅申请计数器 <code>_Sp_counted_ptr</code> 所需的内存，而被管理对象的内存独立于智能指针，在资源释放时由编译器回收。</p>
+<p>回到代码中，<code>__shared_count</code> 在构造函数中直接 <code>new</code> 一个计数器 <code>_Sp_counted_ptr</code> 即可，对应的，其 <code>_M_destroy()</code> 函数的实现仅需调用计数器自身的 <code>delete</code> 运算符。</p>
+<figure class="highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">template</span> &lt;_Lock_policy _Lp&gt; <span class="keyword">class</span> <span class="title class_">__shared_count</span> &#123;</span><br><span class="line"><span class="keyword">public</span>:</span><br><span class="line">    <span class="keyword">template</span> &lt;<span class="keyword">typename</span> _Ptr&gt; <span class="keyword">explicit</span> __shared_count(_Ptr __p) : _M_pi(<span class="number">0</span>) &#123;</span><br><span class="line">        _M_pi = <span class="keyword">new</span> _Sp_counted_ptr&lt;_Ptr, _Lp&gt;(__p);</span><br><span class="line">	&#125;</span><br><span class="line"><span class="keyword">private</span>:</span><br><span class="line">    _Sp_counted_base&lt;_Lp&gt;* _M_pi;</span><br><span class="line">&#125;;</span><br><span class="line"></span><br><span class="line"><span class="keyword">template</span>&lt;<span class="keyword">typename</span> _Ptr, _Lock_policy _Lp&gt;</span><br><span class="line"><span class="keyword">class</span> <span class="title class_">_Sp_counted_ptr</span> <span class="keyword">final</span> : <span class="keyword">public</span> _Sp_counted_base&lt;_Lp&gt; &#123;</span><br><span class="line"><span class="keyword">public</span>:</span><br><span class="line">    <span class="keyword">explicit</span> _Sp_counted_ptr(_Ptr __p) <span class="keyword">noexcept</span> : _M_ptr(__p) &#123;&#125;</span><br><span class="line">    <span class="keyword">virtual</span> <span class="type">void</span> _M_dispose() <span class="keyword">noexcept</span> &#123; <span class="keyword">delete</span> _M_ptr; &#125;</span><br><span class="line">    <span class="keyword">virtual</span> <span class="type">void</span> _M_destroy() <span class="keyword">noexcept</span> &#123; <span class="keyword">delete</span> <span class="keyword">this</span>; &#125;</span><br><span class="line"><span class="keyword">private</span>:</span><br><span class="line">    _Ptr _M_ptr;</span><br><span class="line">&#125;;</span><br></pre></td></tr></table></figure>
+<h3 id="make_shared"><code>make_shared</code></h3>
+<p><code>make_shared</code> 的构造如下面代码所示：</p>
+<figure class="highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">auto</span> _p = std::<span class="built_in">make_shared</span>&lt;<span class="type">int</span>&gt;(<span class="number">3</span>);</span><br></pre></td></tr></table></figure>
+<p><code>make_shared</code> 作为 <code>shared_ptr</code> 的友元函数，调用了前面类图中 shared 系列的第二个构造函数。</p>
+<figure class="highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">template</span> &lt;<span class="keyword">typename</span> _Tp, _Lock_policy _Lp&gt; <span class="keyword">class</span> <span class="title class_">__shared_ptr</span> &#123;</span><br><span class="line"><span class="keyword">protected</span>:</span><br><span class="line">    <span class="keyword">template</span>&lt;<span class="keyword">typename</span> _Alloc, <span class="keyword">typename</span>... _Args&gt; <span class="keyword">explicit</span></span><br><span class="line">    __shared_ptr(_Alloc _a, _Args&amp;&amp;... _args)</span><br><span class="line">	: _M_ptr(), _M_refcount(_M_ptr, _a, _args...) &#123;</span><br><span class="line">	    _M_enable_shared_from_this_with(_M_ptr);</span><br><span class="line">	&#125;</span><br><span class="line"><span class="keyword">private</span>:</span><br><span class="line">    element_type* _M_ptr;</span><br><span class="line">    __shared_count&lt;_Lp&gt; _M_refcount;</span><br><span class="line">&#125;;</span><br></pre></td></tr></table></figure>
+<p>对于这种用法，<code>shared_ptr</code> 需要自己创建管理对象，为了减少内存多次分配带来的性能开销，<code>__shared_count</code> 构造函数将一次性申请用于存储被管理对象和计数器大小的内存。由于被管理对象与计数器在同一块内存上，因此被管理对象的析构与内存回收就必须分离开来，在资源回收的 <code>_M_dispose()</code> 函数中仅析构对象，在计数器回收时析构计数器并回收全部内存。</p>
+<p>在 <code>__shared_count</code> 构造函数及其相关的代码中，开发人员使用了 <code>allocator</code> 分离对象的构建/析构与内存的分配/回收。</p>
+<p>相关代码如下：</p>
+<figure class="highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">template</span> &lt;_Lock_policy _Lp&gt; <span class="keyword">class</span> <span class="title class_">__shared_count</span> &#123;</span><br><span class="line"><span class="keyword">public</span>:</span><br><span class="line">    <span class="keyword">template</span> &lt;<span class="keyword">typename</span> _Tp, <span class="keyword">typename</span> _Alloc, <span class="keyword">typename</span>... _Args&gt; <span class="keyword">explicit</span></span><br><span class="line">    __shared_count(_Tp*&amp; _p, _Alloc _a, _Args&amp;&amp;... _args) &#123;</span><br><span class="line">        _M_pi = allocator_traits::<span class="built_in">allocate</span>(<span class="number">1</span>); <span class="comment">/* rebind from _a, allocate _Sp_counted_ptr_inplace */</span></span><br><span class="line">        ::<span class="keyword">new</span> (_M_pi) _Sp_counted_ptr_inplace(_args...);</span><br><span class="line">        _p = &amp;_M_pi-&gt;_M_storage; <span class="comment">/* point to the data object */</span></span><br><span class="line">	&#125;</span><br><span class="line"><span class="keyword">private</span>:</span><br><span class="line">    _Sp_counted_base&lt;_Lp&gt;* _M_pi;</span><br><span class="line">&#125;;</span><br><span class="line"></span><br><span class="line"><span class="keyword">template</span>&lt;<span class="keyword">typename</span> _Tp, <span class="keyword">typename</span> _Alloc, _Lock_policy _Lp&gt;</span><br><span class="line"><span class="keyword">class</span> <span class="title class_">_Sp_counted_ptr_inplace</span> <span class="keyword">final</span> : <span class="keyword">public</span> _Sp_counted_base&lt;_Lp&gt; &#123;</span><br><span class="line"><span class="keyword">public</span>:</span><br><span class="line">    <span class="keyword">template</span>&lt;<span class="keyword">typename</span>... _Args&gt;	_Sp_counted_ptr_inplace(_Alloc _a, _Args&amp;&amp;... _args) &#123;</span><br><span class="line">	    allocator_traits::<span class="built_in">construct</span>(&amp;_M_storage, _args...);</span><br><span class="line">	&#125;</span><br><span class="line">    <span class="keyword">virtual</span> <span class="type">void</span> _M_dispose() <span class="keyword">noexcept</span> &#123;</span><br><span class="line">        <span class="comment">/* allocator&#x27;s stored in internal class */</span></span><br><span class="line">        allocator_traits::<span class="built_in">destroy</span>(&amp;_M_storage);</span><br><span class="line">    &#125;</span><br><span class="line">    <span class="keyword">virtual</span> <span class="type">void</span> _M_destroy() <span class="keyword">noexcept</span> &#123;</span><br><span class="line">        __allocated_ptr _guard_ptr(<span class="keyword">this</span>); <span class="comment">// destruct and deallocate %this in destructor</span></span><br><span class="line">        <span class="keyword">this</span>-&gt;~_Sp_counted_ptr_inplace();</span><br><span class="line">    &#125;</span><br><span class="line"><span class="keyword">private</span>:</span><br><span class="line">    _Tp _M_storage;</span><br><span class="line">&#125;;</span><br></pre></td></tr></table></figure>
+<h3 id="总结">总结</h3>
+<p><code>shared_ptr(*)</code> 用法产生两次内存分配，<code>make_shared</code> 仅需要一次内存分配， 前者消耗更多的内存与系统调用时间，并且有造成内存碎片的可能， 后者由于连续的内存存储，在通过指针访问（箭头运算符）其中成员时，可以有更好的缓存优化。</p>
+<p>当引用计数为零时，<code>shared_ptr(*)</code> 随机释放掉被管理对象的内存，但对 <code>make_shared</code> 而言，直到弱引用计数也为零，这些内存才被释放，存在隐藏的“内存泄漏”问题。</p>
+
+      
+    </div>
+    <footer class="article-footer">
+      <a data-url="http://example.com/2024/09/30/stl_memory/" data-id="cm1ovk1ox000l8fq30xuna6te" data-title="STL 智能指针分析" class="article-share-link">Share</a>
+      
+      
+      
+  <ul class="article-tag-list" itemprop="keywords"><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/c/" rel="tag">c++</a></li><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/stl/" rel="tag">stl</a></li></ul>
+
+    </footer>
+  </div>
+  
+    
+<nav id="article-nav">
+  
+  
+    <a href="/2024/07/12/random_player/" id="article-nav-older" class="article-nav-link-wrap">
+      <strong class="article-nav-caption">Older</strong>
+      <div class="article-nav-title">随机的音乐播放器</div>
+    </a>
+  
+</nav>
+
+  
+</article>
+
+
+</section>
+        <aside id="sidebar">
+  
+    
+  <div class="widget-wrap">
+    <h3 class="widget-title">Tags</h3>
+    <div class="widget">
+      <ul class="tag-list" itemprop="keywords"><li class="tag-list-item"><a class="tag-list-link" href="/tags/c/" rel="tag">c++</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/flash/" rel="tag">flash</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/game/" rel="tag">game</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/github-actions/" rel="tag">github&#x2F;actions</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/github-workflow/" rel="tag">github&#x2F;workflow</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/hexo/" rel="tag">hexo</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/nodejs/" rel="tag">nodejs</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/probability-theory/" rel="tag">probability theory</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/random/" rel="tag">random</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/stl/" rel="tag">stl</a></li></ul>
+    </div>
+  </div>
+
+
+  
+    
+  <div class="widget-wrap">
+    <h3 class="widget-title">Recent Posts</h3>
+    <div class="widget">
+      <ul>
+        
+          <li>
+            <a href="/2024/09/30/stl_memory/">STL 智能指针分析</a>
+          </li>
+        
+          <li>
+            <a href="/2024/07/12/random_player/">随机的音乐播放器</a>
+          </li>
+        
+          <li>
+            <a href="/2024/07/11/manufactoria/">Manufactoria</a>
+          </li>
+        
+          <li>
+            <a href="/2024/07/10/build_and_deploy_blog/">搭建并部署你的博客</a>
+          </li>
+        
+      </ul>
+    </div>
+  </div>
+
+  
+    
+
+  
+    
+  <div class="widget-wrap">
+    <h3 class="widget-title">Archives</h3>
+    <div class="widget">
+      <ul class="archive-list"><li class="archive-list-item"><a class="archive-list-link" href="/archives/2024/09/">September 2024</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2024/07/">July 2024</a></li></ul>
+    </div>
+  </div>
+
+  
+</aside>
+      </div>
+      <footer id="footer">
+  
+  <div class="outer">
+    <div id="footer-info" class="inner">
+      &copy; 2024 By Autoload<br>
+      Driven - <a href="https://hexo.io/" target="_blank">Hexo</a>|Theme - <a href="https://github.com/autoload/hexo-theme-auto" target="_blank">Auto</a>
+    </div>
+  </div>
+</footer>
+    </div>
+    <nav id="mobile-nav">
+  
+    <a href="/" class="mobile-nav-link">Home</a>
+  
+    <a href="/archives" class="mobile-nav-link">Archives</a>
+  
+    <a href="/categories" class="mobile-nav-link">Categories</a>
+  
+    <a href="/tags" class="mobile-nav-link">Tags</a>
+  
+    <a href="/about" class="mobile-nav-link">About</a>
+  
+</nav>
+    
+
+
+<script src="/js/jquery-3.4.1.min.js"></script>
+
+
+<script src="/js/script.js"></script>
+
+
+
+
+  </div>
+</body>
+</html>

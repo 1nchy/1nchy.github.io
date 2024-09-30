@@ -1,0 +1,259 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  
+  <title>搭建并部署你的博客 | 1nchy</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+  
+    <link rel="shortcut icon" href="/favicon.png">
+  
+  
+<link rel="stylesheet" href="/css/style.css">
+
+<meta name="generator" content="Hexo 7.3.0"></head>
+
+<body>
+  <div id="container">
+    <div id="wrap">
+      <header id="header">
+  <div id="banner"></div>
+  <div id="header-outer" class="outer">
+    <div id="header-title" class="inner">
+      <h1 id="logo-wrap">
+        <a href="/" id="logo">1nchy</a>
+      </h1>
+      
+        <h2 id="subtitle-wrap">
+          <a href="/" id="subtitle">record ideas from 1nchy</a>
+        </h2>
+      
+    </div>
+    <div id="header-inner" class="inner">
+      <nav id="main-nav">
+        <a id="main-nav-toggle" class="nav-icon"></a>
+        
+          <a class="main-nav-link" href="/">Home</a>
+        
+          <a class="main-nav-link" href="/archives">Archives</a>
+        
+          <a class="main-nav-link" href="/categories">Categories</a>
+        
+          <a class="main-nav-link" href="/tags">Tags</a>
+        
+          <a class="main-nav-link" href="/about">About</a>
+        
+      </nav>
+    </div>
+  </div>
+</header>
+
+      <div class="outer">
+        <section id="main"><article id="post-build_and_deploy_blog" class="h-entry article article-type-post" itemprop="blogPost" itemscope itemtype="https://schema.org/BlogPosting">
+  <div class="article-meta">
+    <a href="/2024/07/10/build_and_deploy_blog/" class="article-date">
+  <time class="dt-published" datetime="2024-07-10T00:00:00.000Z" itemprop="datePublished">2024-07-10</time>
+</a>
+    
+  </div>
+  <div class="article-inner">
+    
+    
+      <header class="article-header">
+        
+  
+    <h1 class="p-name article-title" itemprop="headline name">
+      搭建并部署你的博客
+    </h1>
+  
+
+      </header>
+    
+    <div class="e-content article-entry" itemprop="articleBody">
+      
+        <p><a target="_blank" rel="noopener" href="https://hexo.io/">Hexo</a> 是一个快速、简洁且高效的博客框架。 它使用 Markdown（或其他渲染引擎）解析文章，支持生成静态文件，适合搭建个人博客。</p>
+<p><a target="_blank" rel="noopener" href="https://hexo.io/docs/">hexo 文档</a> | <a target="_blank" rel="noopener" href="https://hexo.io/docs/troubleshooting.html">hexo Q&amp;A</a> | <a target="_blank" rel="noopener" href="https://github.com/hexojs/hexo/issues">hexo issue</a>.</p>
+<span id="more"></span>
+<h2 id="初始化环境">初始化环境</h2>
+<p>本地上需要安装 <code>nodejs</code> 及 <code>hexo</code>，ubuntu 软件源里的 <code>nodejs</code> 版本较低，我们使用下面的方法安装最新版。</p>
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta prompt_">$ </span><span class="language-bash">curl -fsSL https://deb.nodesource.com/setup_20.x | <span class="built_in">sudo</span> bash -</span></span><br><span class="line"><span class="meta prompt_">$ </span><span class="language-bash"><span class="built_in">sudo</span> apt install nodejs</span></span><br></pre></td></tr></table></figure>
+<p>安装 <code>hexo</code>。</p>
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta prompt_">$ </span><span class="language-bash"><span class="built_in">sudo</span> npm install hexo-cli -g</span></span><br></pre></td></tr></table></figure>
+<h2 id="搭建博客">搭建博客</h2>
+<h3 id="初始化博客文件夹">初始化博客文件夹</h3>
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta prompt_">$ </span><span class="language-bash">hexo init &lt;username&gt;.github.io</span></span><br></pre></td></tr></table></figure>
+<h3 id="安装主题">安装主题</h3>
+<p>我们以 auto 主题为例</p>
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta prompt_">$ </span><span class="language-bash">git <span class="built_in">clone</span> https://github.com/autoload/hexo-theme-auto.git themes/auto</span></span><br><span class="line"><span class="meta prompt_">$ </span><span class="language-bash"><span class="built_in">rm</span> -rf themes/auto/.git</span></span><br></pre></td></tr></table></figure>
+<h2 id="部署博客">部署博客</h2>
+<p>我们采用 Github actions 完成博客的自动化部署，该方案需要我们创建两个 Github 仓库：<code>blog</code> 和 <code>1nchy.github.io</code>。</p>
+<p><code>blog</code> 仓库是博客的源码仓库，我们上面的修改都会提交到这个仓库。该仓库将配置 workflow，把博客页面自动部署到 <code>1nchy.github.io</code> 仓库中。</p>
+<p><code>1nchy.github.io</code> 作为特殊仓库，通过 Github pages 服务，从 GitHub 上的仓库获取 HTML、CSS 和 JavaScript 文件，通过构建过程运行文件，然后发布网站。</p>
+<h3 id="blog-配置">blog 配置</h3>
+<ul>
+<li>token</li>
+</ul>
+<p>首先获取用于推送代码至 <code>1nchy.github.io</code> 仓库的 token。</p>
+<blockquote>
+<p>settings -&gt; Developer settings -&gt; Personal access tokens -&gt; Fine-grained tokens</p>
+</blockquote>
+<p>获取新的 token 时，需要配置其对特定仓库（这里是 <code>1nchy.github.io</code>）的权限（如 content 等）。</p>
+<ul>
+<li>secrets</li>
+</ul>
+<blockquote>
+<p>settings -&gt; Secrets and variables -&gt; Actions</p>
+</blockquote>
+<p>将上一步获得的 token 添加至 secrets 列表。</p>
+<ul>
+<li>workflow</li>
+</ul>
+<p>创建 <code>.github/workflows/deploy.yml</code> 文件，用于构建部署。</p>
+<figure class="highlight yml"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br><span class="line">61</span><br><span class="line">62</span><br><span class="line">63</span><br></pre></td><td class="code"><pre><span class="line"><span class="attr">name:</span> <span class="string">Deploy</span> <span class="comment"># 部署</span></span><br><span class="line"></span><br><span class="line"><span class="attr">env:</span></span><br><span class="line">  <span class="attr">GIT_USER:</span> <span class="string">1nchy</span></span><br><span class="line">  <span class="attr">GIT_EMAIL:</span> <span class="number">2493242629</span><span class="string">@qq.com</span></span><br><span class="line">  <span class="attr">DEPLOY_REPO:</span> <span class="string">1nchy/1nchy.github.io</span></span><br><span class="line"> </span><br><span class="line"><span class="attr">on:</span> <span class="comment"># 触发条件</span></span><br><span class="line">  <span class="attr">push:</span></span><br><span class="line">    <span class="attr">branches:</span></span><br><span class="line">      <span class="bullet">-</span> <span class="string">master</span> <span class="comment"># 推送到 master 分支</span></span><br><span class="line"> </span><br><span class="line">  <span class="attr">release:</span></span><br><span class="line">    <span class="attr">types:</span></span><br><span class="line">      <span class="bullet">-</span> <span class="string">published</span> <span class="comment"># 推送新版本号</span></span><br><span class="line"> </span><br><span class="line">  <span class="attr">workflow_dispatch:</span> <span class="comment"># 手动触发</span></span><br><span class="line"> </span><br><span class="line"><span class="attr">jobs:</span></span><br><span class="line">  <span class="attr">build:</span></span><br><span class="line">    <span class="attr">runs-on:</span> <span class="string">ubuntu-latest</span></span><br><span class="line"> </span><br><span class="line">    <span class="attr">steps:</span></span><br><span class="line">    <span class="bullet">-</span> <span class="attr">name:</span> <span class="string">Checkout</span> <span class="comment"># Checkout 仓库</span></span><br><span class="line">      <span class="attr">uses:</span> <span class="string">actions/checkout@v4</span></span><br><span class="line">      <span class="attr">with:</span></span><br><span class="line">        <span class="attr">ref:</span> <span class="string">master</span></span><br><span class="line"> </span><br><span class="line">    <span class="bullet">-</span> <span class="attr">name:</span> <span class="string">Setup</span> <span class="string">Node</span> <span class="comment"># 安装 Node.js</span></span><br><span class="line">      <span class="attr">uses:</span> <span class="string">actions/setup-node@v4</span></span><br><span class="line">      <span class="attr">with:</span></span><br><span class="line">        <span class="attr">node-version:</span> <span class="string">&quot;20.x&quot;</span></span><br><span class="line"> </span><br><span class="line">    <span class="bullet">-</span> <span class="attr">name:</span> <span class="string">Install</span> <span class="string">Hexo</span> <span class="comment"># 安装 Hexo</span></span><br><span class="line">      <span class="attr">run:</span> <span class="string">|</span></span><br><span class="line"><span class="string">        npm install hexo-cli -g</span></span><br><span class="line"><span class="string"></span>        </span><br><span class="line">    <span class="bullet">-</span> <span class="attr">name:</span> <span class="string">Cache</span> <span class="string">Modules</span> <span class="comment"># 缓存 Node 插件</span></span><br><span class="line">      <span class="attr">uses:</span> <span class="string">actions/cache@v4</span></span><br><span class="line">      <span class="attr">id:</span> <span class="string">cache-modules</span></span><br><span class="line">      <span class="attr">with:</span></span><br><span class="line">        <span class="attr">path:</span> <span class="string">node_modules</span></span><br><span class="line">        <span class="attr">key:</span> <span class="string">$&#123;&#123;runner.OS&#125;&#125;-$&#123;&#123;hashFiles(&#x27;**/package-lock.json&#x27;)&#125;&#125;</span></span><br><span class="line"> </span><br><span class="line">    <span class="bullet">-</span> <span class="attr">name:</span> <span class="string">Install</span> <span class="string">Dependencies</span> <span class="comment"># 如果没有缓存或 插件有更新，则安装插件</span></span><br><span class="line">      <span class="comment"># if: steps.cache-modules.outputs.cache-hit != &#x27;true&#x27;</span></span><br><span class="line">      <span class="attr">run:</span> <span class="string">|</span> <span class="comment"># 如果仓库里没有 package-lock.json，上传一下，npm ci 必须要有 package-lock.json</span></span><br><span class="line">        <span class="string">npm</span> <span class="string">ci</span></span><br><span class="line">    <span class="bullet">-</span> <span class="attr">name:</span> <span class="string">Generate</span> <span class="comment"># 生成</span></span><br><span class="line">      <span class="attr">run:</span> <span class="string">|</span></span><br><span class="line"><span class="string">        hexo clean</span></span><br><span class="line"><span class="string">        hexo generate</span></span><br><span class="line"><span class="string"></span>    <span class="bullet">-</span> <span class="attr">name:</span> <span class="string">Deploy</span> <span class="comment"># 部署</span></span><br><span class="line">      <span class="attr">run:</span> <span class="string">|</span></span><br><span class="line"><span class="string">        git config --global user.name $GIT_USER</span></span><br><span class="line"><span class="string">        git config --global user.email $GIT_EMAIL</span></span><br><span class="line"><span class="string">        export TZ=&#x27;Asia/Shanghai&#x27;</span></span><br><span class="line"><span class="string">        cd public/</span></span><br><span class="line"><span class="string">        git init</span></span><br><span class="line"><span class="string">        git add -A</span></span><br><span class="line"><span class="string">        git commit -m &quot;Create by workflows&quot;</span></span><br><span class="line"><span class="string">        git remote add origin https://$&#123;&#123;secrets.ACCESS_TOKEN&#125;&#125;@github.com/$DEPLOY_REPO</span></span><br><span class="line"><span class="string">        git push origin master -f</span></span><br></pre></td></tr></table></figure>
+<p>之后我们将提交推送至 <code>blog</code> 仓库时，就会自动构建并将 <code>public</code> 文件夹下的产物推送至 <code>1nchy.github.io</code> 仓库了。</p>
+<h3 id="nchy.github.io-配置">1nchy.github.io 配置</h3>
+<p>这个仓库并不需要做什么配置，晾在一边就好。</p>
+<h2 id="其他问题">其他问题</h2>
+<h3 id="文本省略">文本省略</h3>
+<p>有时我们不希望将博客的全文展示在主页上，可以使用</p>
+<figure class="highlight html"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">&lt;!--more--&gt;</span></span><br></pre></td></tr></table></figure>
+<p>语句，将后面的内容隐藏（不在主页进行展示）。</p>
+<h3 id="图片展示">图片展示</h3>
+<p>首先需要修改 <code>_config.yml</code> 中 <code>post_asset_folder</code> 项，设置为 <code>true</code>。</p>
+<p>之后，每当我们新建博客时，都会在 <code>_post</code> 文件夹下出现一个与博客同名的文件夹，将图片等资源放在这个文件夹内即可。</p>
+<p>为方便缩放图片，建议用 html 格式引入图片，图片路径不需要再声明同名文件夹。</p>
+<h3 id="公式渲染">公式渲染</h3>
+<p>首先卸载原有的渲染工具，并安装 pandoc 渲染工具</p>
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta prompt_">$ </span><span class="language-bash">npm uninstall hexo-math</span></span><br><span class="line"><span class="meta prompt_">$ </span><span class="language-bash">npm uninstall hexo-renderer-marked</span></span><br><span class="line"><span class="meta prompt_">$ </span><span class="language-bash">npm install hexo-renderer-pandoc</span></span><br></pre></td></tr></table></figure>
+<p>其次修改主题配置文件 <code>themes/&lt;theme name&gt;/_config.yml</code>。</p>
+<figure class="highlight yml"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line"><span class="attr">mathjax:</span></span><br><span class="line">  <span class="attr">enable:</span> <span class="literal">true</span></span><br><span class="line">  <span class="attr">single_dollars:</span> <span class="literal">true</span></span><br><span class="line">  <span class="attr">append_css:</span> <span class="literal">true</span></span><br><span class="line">  <span class="comment"># per_page: true</span></span><br></pre></td></tr></table></figure>
+<p>此时本地生成静态文件运行时，会报错 <code>pandoc exited with code null</code>。静态文件生成并运行需要 <code>pandoc</code> 可执行文件。</p>
+<p>这里分为两部分，一是本地渲染，二是远程渲染。</p>
+<h4 id="本地渲染">本地渲染</h4>
+<p>本地安装 <code>pandoc</code>，用 ubuntu 包管理器，或直接在 github 上下载最新版即可。</p>
+<h4 id="远程渲染">远程渲染</h4>
+<p>远程安装 <code>pandoc</code>，需要修改 workflow 配置文件。</p>
+<figure class="highlight yml"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line"><span class="attr">jobs:</span></span><br><span class="line">  <span class="attr">build:</span></span><br><span class="line">    <span class="attr">runs-on:</span> <span class="string">ubuntu-latest</span></span><br><span class="line">    <span class="attr">steps:</span></span><br><span class="line">    <span class="bullet">-</span> <span class="attr">name:</span> <span class="string">Install</span> <span class="string">Pandoc</span></span><br><span class="line">      <span class="attr">uses:</span> <span class="string">siacodelabs/setup-pandoc@v1</span></span><br></pre></td></tr></table></figure>
+
+      
+    </div>
+    <footer class="article-footer">
+      <a data-url="http://example.com/2024/07/10/build_and_deploy_blog/" data-id="cm1ovk1ol00018fq35ore3ppi" data-title="搭建并部署你的博客" class="article-share-link">Share</a>
+      
+      
+      
+  <ul class="article-tag-list" itemprop="keywords"><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/github-actions/" rel="tag">github&#x2F;actions</a></li><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/github-workflow/" rel="tag">github&#x2F;workflow</a></li><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/hexo/" rel="tag">hexo</a></li><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/nodejs/" rel="tag">nodejs</a></li></ul>
+
+    </footer>
+  </div>
+  
+    
+<nav id="article-nav">
+  
+    <a href="/2024/07/11/manufactoria/" id="article-nav-newer" class="article-nav-link-wrap">
+      <strong class="article-nav-caption">Newer</strong>
+      <div class="article-nav-title">
+        
+          Manufactoria
+        
+      </div>
+    </a>
+  
+  
+</nav>
+
+  
+</article>
+
+
+</section>
+        <aside id="sidebar">
+  
+    
+  <div class="widget-wrap">
+    <h3 class="widget-title">Tags</h3>
+    <div class="widget">
+      <ul class="tag-list" itemprop="keywords"><li class="tag-list-item"><a class="tag-list-link" href="/tags/c/" rel="tag">c++</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/flash/" rel="tag">flash</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/game/" rel="tag">game</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/github-actions/" rel="tag">github&#x2F;actions</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/github-workflow/" rel="tag">github&#x2F;workflow</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/hexo/" rel="tag">hexo</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/nodejs/" rel="tag">nodejs</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/probability-theory/" rel="tag">probability theory</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/random/" rel="tag">random</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/stl/" rel="tag">stl</a></li></ul>
+    </div>
+  </div>
+
+
+  
+    
+  <div class="widget-wrap">
+    <h3 class="widget-title">Recent Posts</h3>
+    <div class="widget">
+      <ul>
+        
+          <li>
+            <a href="/2024/09/30/stl_memory/">STL 智能指针分析</a>
+          </li>
+        
+          <li>
+            <a href="/2024/07/12/random_player/">随机的音乐播放器</a>
+          </li>
+        
+          <li>
+            <a href="/2024/07/11/manufactoria/">Manufactoria</a>
+          </li>
+        
+          <li>
+            <a href="/2024/07/10/build_and_deploy_blog/">搭建并部署你的博客</a>
+          </li>
+        
+      </ul>
+    </div>
+  </div>
+
+  
+    
+
+  
+    
+  <div class="widget-wrap">
+    <h3 class="widget-title">Archives</h3>
+    <div class="widget">
+      <ul class="archive-list"><li class="archive-list-item"><a class="archive-list-link" href="/archives/2024/09/">September 2024</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2024/07/">July 2024</a></li></ul>
+    </div>
+  </div>
+
+  
+</aside>
+      </div>
+      <footer id="footer">
+  
+  <div class="outer">
+    <div id="footer-info" class="inner">
+      &copy; 2024 By Autoload<br>
+      Driven - <a href="https://hexo.io/" target="_blank">Hexo</a>|Theme - <a href="https://github.com/autoload/hexo-theme-auto" target="_blank">Auto</a>
+    </div>
+  </div>
+</footer>
+    </div>
+    <nav id="mobile-nav">
+  
+    <a href="/" class="mobile-nav-link">Home</a>
+  
+    <a href="/archives" class="mobile-nav-link">Archives</a>
+  
+    <a href="/categories" class="mobile-nav-link">Categories</a>
+  
+    <a href="/tags" class="mobile-nav-link">Tags</a>
+  
+    <a href="/about" class="mobile-nav-link">About</a>
+  
+</nav>
+    
+
+
+<script src="/js/jquery-3.4.1.min.js"></script>
+
+
+<script src="/js/script.js"></script>
+
+
+
+
+  </div>
+</body>
+</html>
